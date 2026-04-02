@@ -24,6 +24,32 @@
 
 ---
 
+## İçindekiler
+
+- [Donanım Gereksinimleri](#donanım-gereksinimleri)
+- [Adım 1 — Sistem Kontrolü](#adım-1--sistem-kontrolü)
+- [Adım 2 — Sistem Güncellemesi ve Bağımlılıklar](#adım-2--sistem-güncellemesi-ve-bağımlılıklar)
+- [Adım 3 — Kernel Versiyonu Doğrulama](#adım-3--kernel-versiyonu-doğrulama)
+- [Adım 4 — SMT (HyperThreading) Kapatma](#adım-4--smt-hyperthreading-kapatma)
+- [Adım 5 — CPU Performance Modu ve File Descriptor Limitleri](#adım-5--cpu-performance-modu-ve-file-descriptor-limitleri)
+- [Adım 6 — TrieDB Diskini Hazırlama](#adım-6--triedb-diskini-hazırlama)
+- [Adım 7 — Monad Paketini Kurma](#adım-7--monad-paketini-kurma)
+- [Adım 8 — Kullanıcı ve Dizin Yapısı](#adım-8--kullanıcı-ve-dizin-yapısı)
+- [Adım 9 — Konfigürasyon Dosyalarını İndirme](#adım-9--konfigürasyon-dosyalarını-i̇ndirme)
+- [Adım 10 — Keystore Şifresi Oluşturma](#adım-10--keystore-şifresi-oluşturma)
+- [Adım 11 — BLS ve SECP Anahtarları Oluşturma](#adım-11--bls-ve-secp-anahtarları-oluşturma)
+- [Adım 12 — node.toml Yapılandırması](#adım-12--nodetoml-yapılandırması)
+- [Adım 13 — Remote Config URL'leri](#adım-13--remote-config-urleri)
+- [Adım 14 — Firewall Ayarları](#adım-14--firewall-ayarları)
+- [Adım 15 — Dosya İzinleri](#adım-15--dosya-i̇zinleri)
+- [Adım 16 — TrieDB Formatlama](#adım-16--triedb-formatlama)
+- [Adım 17 — Snapshot ile Başlangıç](#adım-17--snapshot-ile-başlangıç-hard-reset)
+- [Adım 18 — Servisleri Başlatma](#adım-18--servisleri-başlatma)
+- [Node İzleme](#node-i̇zleme)
+- [Güncel Kalmak](#güncel-kalmak)
+
+---
+
 ## Donanım Gereksinimleri
 
 | Bileşen | Minimum |
@@ -58,7 +84,7 @@ lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl nvme-cli aria2 jq rsync parted cpufrequtils
+apt install -y curl nvme-cli aria2 jq rsync parted cpufrequtils mdadm
 ```
 
 Güncelleme sonrasında kernel güncellemesi yapıldıysa yeniden başlatın:
@@ -188,6 +214,8 @@ nvme format --lbaf=0 /dev/nvme1n1
 APT repository'yi yapılandırın:
 
 ```bash
+mkdir -p /etc/apt/keyrings
+
 cat <<EOF > /etc/apt/sources.list.d/category-labs.sources
 Types: deb
 URIs: https://pkg.category.xyz/
