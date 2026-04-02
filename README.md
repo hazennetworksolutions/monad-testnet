@@ -24,6 +24,32 @@
 
 ---
 
+## Table of Contents
+
+- [Hardware Requirements](#hardware-requirements)
+- [Step 1 — System Verification](#step-1--system-verification)
+- [Step 2 — System Update and Dependencies](#step-2--system-update-and-dependencies)
+- [Step 3 — Verify Kernel Version](#step-3--verify-kernel-version)
+- [Step 4 — Disable SMT (HyperThreading)](#step-4--disable-smt-hyperthreading)
+- [Step 5 — CPU Performance Mode and File Descriptor Limits](#step-5--cpu-performance-mode-and-file-descriptor-limits)
+- [Step 6 — Prepare the TrieDB Disk](#step-6--prepare-the-triedb-disk)
+- [Step 7 — Install the Monad Package](#step-7--install-the-monad-package)
+- [Step 8 — Create User and Directory Structure](#step-8--create-user-and-directory-structure)
+- [Step 9 — Download Configuration Files](#step-9--download-configuration-files)
+- [Step 10 — Generate Keystore Password](#step-10--generate-keystore-password)
+- [Step 11 — Generate BLS and SECP Keystores](#step-11--generate-bls-and-secp-keystores)
+- [Step 12 — Configure node.toml](#step-12--configure-nodetoml)
+- [Step 13 — Remote Configuration URLs](#step-13--remote-configuration-urls)
+- [Step 14 — Firewall Configuration](#step-14--firewall-configuration)
+- [Step 15 — Set File Permissions](#step-15--set-file-permissions)
+- [Step 16 — Format TrieDB](#step-16--format-triedb)
+- [Step 17 — Import Snapshot](#step-17--import-snapshot-hard-reset)
+- [Step 18 — Start the Node](#step-18--start-the-node)
+- [Monitoring the Node](#monitoring-the-node)
+- [Staying Updated](#staying-updated)
+
+---
+
 ## Hardware Requirements
 
 | Component | Minimum |
@@ -58,7 +84,7 @@ lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl nvme-cli aria2 jq rsync parted cpufrequtils
+apt install -y curl nvme-cli aria2 jq rsync parted cpufrequtils mdadm
 ```
 
 If a kernel upgrade was installed, reboot:
@@ -188,6 +214,8 @@ nvme format --lbaf=0 /dev/nvme1n1
 Configure the APT repository:
 
 ```bash
+mkdir -p /etc/apt/keyrings
+
 cat <<EOF > /etc/apt/sources.list.d/category-labs.sources
 Types: deb
 URIs: https://pkg.category.xyz/
