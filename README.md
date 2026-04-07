@@ -1,9 +1,9 @@
 <div align="center">
 
-# 🟣 Monad Testnet Full Node Setup Guide
+# 🟣 Monad Testnet Full Node & Validator Setup Guide
 
-**A complete guide to running a Monad testnet full node from scratch**  
-*RAID management, TrieDB preparation, snapshot import, and service startup — step by step.*
+**A complete guide to running a Monad testnet full node and registering as a validator**  
+*RAID management, TrieDB preparation, snapshot import, service startup, and validator registration — step by step.*
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Monad](https://img.shields.io/badge/Monad-Testnet-836EF9?style=flat-square)](https://monad.xyz)
@@ -47,6 +47,9 @@
 - [Step 18 — Start the Node](#step-18--start-the-node)
 - [Monitoring the Node](#monitoring-the-node)
 - [Staying Updated](#staying-updated)
+- [Step 19 — Validator Registration (VDP)](#step-19--validator-registration-vdp)
+- [Step 20 — Update node.toml for Validator](#step-20--update-nodetoml-for-validator)
+- [Step 21 — validator-info PR](#step-21--validator-info-pr)
 
 ---
 
@@ -499,6 +502,131 @@ systemctl status monad-bft monad-execution monad-rpc
 - Telegram: [Monad Node Announcements](https://t.me/MonadNodeAnnouncements)
 - Discord: [Monad Developer Discord](https://discord.gg/monaddev)
 - Official Docs: [docs.monad.xyz](https://docs.monad.xyz/node-ops/full-node-installation)
+
+---
+
+---
+
+## Step 19 — Validator Registration (VDP)
+
+> This step is only for node operators who have received tokens through the [Monad Validator Delegation Program (VDP)](https://docs.monad.xyz/node-ops/validator-delegation-program/).
+
+### Requirements
+- At least **100,000 MON** sent to your EOA address
+- Full node running and synced to network tip
+
+### Install staking-sdk-cli
+
+```bash
+apt install -y python3.12-venv git
+git clone https://github.com/monad-developers/staking-sdk-cli.git
+cd staking-sdk-cli
+python3 -m venv venv
+source venv/bin/activate
+pip install .
+cp staking-cli/config.toml.example config.toml
+```
+
+### Edit config.toml
+
+Fill in the `funded_address_private_key` field with your EOA private key:
+
+```bash
+nano config.toml
+```
+
+```toml
+funded_address_private_key = "0xYOUR_EOA_PRIVATE_KEY"
+```
+
+> ⚠️ Private key must include the `0x` prefix. Keep this file secure, never share it.
+
+### Extract Node Private Keys
+
+> ⚠️ Do NOT use keys from backup files — recover them from the keystore:
+
+```bash
+source /home/monad/.env
+monad-keystore recover --password "$KEYSTORE_PASSWORD" \
+  --keystore-path /home/monad/monad-bft/config/id-secp --key-type secp
+
+monad-keystore recover --password "$KEYSTORE_PASSWORD" \
+  --keystore-path /home/monad/monad-bft/config/id-bls --key-type bls
+```
+
+Note the output:
+- **SECP private key** → enter **without** `0x` prefix
+- **BLS private key** → enter **with** `0x` prefix
+
+### Run addValidator (TUI)
+
+```bash
+python staking-cli/main.py tui
+```
+
+1. Select `1` (Add Validator)
+2. Fill in the values:
+   - SECP Private Key → without `0x`
+   - BLS Private Key → with `0x`
+   - Amount → `100000`
+   - Authorized Address → your EOA address
+3. Verify that the **Derived Public Keys** match your actual keys
+4. Confirm with `y`
+
+Successful output:
+```
+Status: ✅ Success
+Validator Created! ID: <VALIDATOR_ID>
+```
+
+---
+
+## Step 20 — Update node.toml for Validator
+
+Once your validator is active, block rewards are sent to the `beneficiary` address. Replace the burn address with your own EOA:
+
+```bash
+nano /home/monad/monad-bft/config/node.toml
+```
+
+Update the following line:
+
+```toml
+beneficiary = "0xYOUR_EOA_ADDRESS"
+```
+
+Save and restart services:
+
+```bash
+systemctl restart monad-bft monad-execution monad-rpc
+```
+
+---
+
+## Step 21 — validator-info PR
+
+As requested by the Monad Foundation, submit a PR to the `monad-developers/validator-info` repository:
+
+1. **Fork** [https://github.com/monad-developers/validator-info](https://github.com/monad-developers/validator-info)
+2. Create `<SECP_KEY>.json` inside the `testnet/` folder:
+
+```json
+{
+  "id": <VALIDATOR_ID>,
+  "name": "<YOUR_NODE_NAME>",
+  "secp": "<SECP_PUBLIC_KEY>",
+  "bls": "<BLS_PUBLIC_KEY>",
+  "website": "https://hazennetworksolutions.com",
+  "description": "Enterprise Grade Validation | DevOps & Infrastructure Services",
+  "logo": "https://raw.githubusercontent.com/hazennetworksolutions/logo/main/test.jpg",
+  "x": "https://x.com/haznftofficial"
+}
+```
+
+3. Commit the file and open a pull request
+4. Share the PR link with the Monad Foundation via Telegram/Discord
+
+> ⚠️ PRs that are not shared via Discord/Telegram will not be reviewed.
 
 ---
 
