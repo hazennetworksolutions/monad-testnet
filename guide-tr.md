@@ -1,9 +1,9 @@
 <div align="center">
 
-# 🟣 Monad Testnet Full Node Kurulum Rehberi
+# 🟣 Monad Testnet Full Node & Validator Kurulum Rehberi
 
-**Sıfırdan tam bir Monad testnet full node kurulumu**  
-*RAID yönetimi, TrieDB hazırlığı, snapshot import ve servis başlatma — adım adım.*
+**Sıfırdan tam bir Monad testnet full node ve validator kurulumu**  
+*RAID yönetimi, TrieDB hazırlığı, snapshot import, servis başlatma ve validator kaydı — adım adım.*
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Monad](https://img.shields.io/badge/Monad-Testnet-836EF9?style=flat-square)](https://monad.xyz)
@@ -47,6 +47,9 @@
 - [Adım 18 — Servisleri Başlatma](#adım-18--servisleri-başlatma)
 - [Node İzleme](#node-i̇zleme)
 - [Güncel Kalmak](#güncel-kalmak)
+- [Adım 19 — Validator Kaydı (VDP)](#adım-19--validator-kaydı-vdp)
+- [Adım 20 — node.toml Validator Güncellemesi](#adım-20--nodetoml-validator-güncellemesi)
+- [Adım 21 — validator-info PR](#adım-21--validator-info-pr)
 
 ---
 
@@ -499,6 +502,131 @@ systemctl status monad-bft monad-execution monad-rpc
 - Telegram: [Monad Node Announcements](https://t.me/MonadNodeAnnouncements)
 - Discord: [Monad Developer Discord](https://discord.gg/monaddev)
 - Resmi Dokümantasyon: [docs.monad.xyz](https://docs.monad.xyz/node-ops/full-node-installation)
+
+---
+
+---
+
+## Adım 19 — Validator Kaydı (VDP)
+
+> Bu adım yalnızca [Monad Validator Delegation Program (VDP)](https://docs.monad.xyz/node-ops/validator-delegation-program/) kapsamında Foundation'dan token alan node operatörleri içindir.
+
+### Gereksinimler
+- EOA adresine en az **100,000 MON** gönderilmiş olmalı
+- Full node çalışıyor ve ağa sync olmuş olmalı
+
+### staking-sdk-cli Kurulumu
+
+```bash
+apt install -y python3.12-venv git
+git clone https://github.com/monad-developers/staking-sdk-cli.git
+cd staking-sdk-cli
+python3 -m venv venv
+source venv/bin/activate
+pip install .
+cp staking-cli/config.toml.example config.toml
+```
+
+### config.toml Düzenleme
+
+`config.toml` dosyasında `funded_address_private_key` alanını EOA adresinin private key'iyle doldur:
+
+```bash
+nano config.toml
+```
+
+```toml
+funded_address_private_key = "0xSENIN_EOA_PRIVATE_KEY"
+```
+
+> ⚠️ Private key `0x` ile başlamalı. Dosyayı güvenli tut, asla paylaşma.
+
+### Node Private Key'lerini Çıkar
+
+> ⚠️ Backup dosyalarındaki key'leri kullanma — keystore'dan çıkar:
+
+```bash
+source /home/monad/.env
+monad-keystore recover --password "$KEYSTORE_PASSWORD" \
+  --keystore-path /home/monad/monad-bft/config/id-secp --key-type secp
+
+monad-keystore recover --password "$KEYSTORE_PASSWORD" \
+  --keystore-path /home/monad/monad-bft/config/id-bls --key-type bls
+```
+
+Çıkan değerleri not al:
+- **SECP private key** → `0x` **olmadan** girilecek
+- **BLS private key** → `0x` **ile** girilecek
+
+### addValidator İşlemi (TUI)
+
+```bash
+python staking-cli/main.py tui
+```
+
+1. Menüden `1` (Add Validator) seç
+2. Değerleri gir:
+   - SECP Private Key → `0x` olmadan
+   - BLS Private Key → `0x` ile
+   - Amount → `100000`
+   - Authorized Address → EOA adresin
+3. **Derived Public Keys** ekranda gösterilen public key'lerin kendi key'lerinle eşleştiğini doğrula
+4. `y` diyerek onayla
+
+Başarılı çıktı:
+```
+Status: ✅ Success
+Validator Created! ID: <VALIDATOR_ID>
+```
+
+---
+
+## Adım 20 — node.toml Validator Güncellemesi
+
+Validator aktif olunca blok ödülleri `beneficiary` adresine gider. Burn adresi yerine kendi EOA adresini yaz:
+
+```bash
+nano /home/monad/monad-bft/config/node.toml
+```
+
+Şu satırı güncelle:
+
+```toml
+beneficiary = "0xSENIN_EOA_ADRESIN"
+```
+
+Kaydet, servisleri restart et:
+
+```bash
+systemctl restart monad-bft monad-execution monad-rpc
+```
+
+---
+
+## Adım 21 — validator-info PR
+
+Monad Foundation'ın talebi doğrultusunda `monad-developers/validator-info` reposuna PR at:
+
+1. [https://github.com/monad-developers/validator-info](https://github.com/monad-developers/validator-info) adresini **fork** et
+2. Fork'unda `testnet/` klasörüne `<SECP_KEY>.json` dosyası oluştur:
+
+```json
+{
+  "id": <VALIDATOR_ID>,
+  "name": "<NODE_ADI>",
+  "secp": "<SECP_PUBLIC_KEY>",
+  "bls": "<BLS_PUBLIC_KEY>",
+  "website": "https://hazennetworksolutions.com",
+  "description": "Enterprise Grade Validation | DevOps & Infrastructure Services",
+  "logo": "https://raw.githubusercontent.com/hazennetworksolutions/logo/main/test.jpg",
+  "x": "https://x.com/haznftofficial"
+}
+```
+
+3. Commit et, PR aç
+4. PR linkini Monad Foundation ekibine Telegram/Discord üzerinden ilet
+
+> ⚠️ Discord/Telegram'dan bildirilmeyen PR'lar incelenmez.
 
 ---
 
