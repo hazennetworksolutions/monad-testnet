@@ -7,7 +7,7 @@
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Monad](https://img.shields.io/badge/Monad-Testnet-836EF9?style=flat-square)](https://monad.xyz)
-[![Version](https://img.shields.io/badge/Node%20Version-v0.14.0-brightgreen?style=flat-square)](https://docs.monad.xyz)
+[![Version](https://img.shields.io/badge/Node%20Version-v0.14.1-brightgreen?style=flat-square)](https://docs.monad.xyz)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-10143-blue?style=flat-square)](https://docs.monad.xyz/developer-essentials/testnets)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
@@ -19,7 +19,7 @@
 
 > **Author:** HazenNetworkSolutions  
 > **Network:** Monad Testnet (Chain ID: 10143)  
-> **Version:** v0.14.0  
+> **Version:** v0.14.1  
 > **Last Updated:** April 2026
 
 ---
@@ -45,11 +45,11 @@
 - [Step 16 — Format TrieDB](#step-16--format-triedb)
 - [Step 17 — Import Snapshot](#step-17--import-snapshot-hard-reset)
 - [Step 18 — Start the Node](#step-18--start-the-node)
-- [Monitoring the Node](#monitoring-the-node)
-- [Staying Updated](#staying-updated)
 - [Step 19 — Validator Registration (VDP)](#step-19--validator-registration-vdp)
 - [Step 20 — Update node.toml for Validator](#step-20--update-nodetoml-for-validator)
 - [Step 21 — validator-info PR](#step-21--validator-info-pr)
+- [Monitoring the Node](#monitoring-the-node)
+- [Staying Updated](#staying-updated)
 
 ---
 
@@ -243,6 +243,8 @@ Verify installation:
 monad --version
 ```
 
+> Note: `--chain is required` output is normal — it confirms the binary is working.
+
 ---
 
 ## Step 8 — Create User and Directory Structure
@@ -312,10 +314,26 @@ echo "Success: New keystores generated"
 EOF
 ```
 
-> 🔐 **CRITICAL:** Back up these files to an external location (password manager, etc.):
-> - `/opt/monad/backup/secp-backup`
-> - `/opt/monad/backup/bls-backup`
-> - `/opt/monad/backup/keystore-password-backup`
+> 🔐 **CRITICAL:** Back up the following files to an external location (password manager, external drive, etc.). Without these files, you cannot recover your node identity or validator delegation.
+>
+> | File | Location | Description |
+> |---|---|---|
+> | `id-secp` | `/home/monad/monad-bft/config/id-secp` | Node identity (SECP keystore) |
+> | `id-bls` | `/home/monad/monad-bft/config/id-bls` | Validator signing (BLS keystore) |
+> | `node.toml` | `/home/monad/monad-bft/config/node.toml` | Node configuration |
+> | `keystore-password-backup` | `/opt/monad/backup/keystore-password-backup` | Keystore password |
+> | `secp-backup` | `/opt/monad/backup/secp-backup` | SECP key backup |
+> | `bls-backup` | `/opt/monad/backup/bls-backup` | BLS key backup |
+>
+> Download to your local machine:
+> ```bash
+> scp root@SERVER_IP:/home/monad/monad-bft/config/id-secp ./
+> scp root@SERVER_IP:/home/monad/monad-bft/config/id-bls ./
+> scp root@SERVER_IP:/home/monad/monad-bft/config/node.toml ./
+> scp root@SERVER_IP:/opt/monad/backup/keystore-password-backup ./
+> scp root@SERVER_IP:/opt/monad/backup/secp-backup ./
+> scp root@SERVER_IP:/opt/monad/backup/bls-backup ./
+> ```
 
 ---
 
@@ -612,14 +630,14 @@ As requested by the Monad Foundation, submit a PR to the `monad-developers/valid
 
 ```json
 {
-  "id": <VALIDATOR_ID>,
+  "id": <YOUR_VALIDATOR_ID>,
   "name": "<YOUR_NODE_NAME>",
-  "secp": "<SECP_PUBLIC_KEY>",
-  "bls": "<BLS_PUBLIC_KEY>",
-  "website": "https://hazennetworksolutions.com",
-  "description": "Enterprise Grade Validation | DevOps & Infrastructure Services",
-  "logo": "https://raw.githubusercontent.com/hazennetworksolutions/logo/main/test.jpg",
-  "x": "https://x.com/haznftofficial"
+  "secp": "<YOUR_SECP_PUBLIC_KEY>",
+  "bls": "<YOUR_BLS_PUBLIC_KEY>",
+  "website": "https://your-website.com",
+  "description": "Your description here",
+  "logo": "https://raw.githubusercontent.com/your-repo/logo/main/logo.png",
+  "x": "https://x.com/your_x_handle"
 }
 ```
 
