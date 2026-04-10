@@ -7,7 +7,7 @@
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Monad](https://img.shields.io/badge/Monad-Testnet-836EF9?style=flat-square)](https://monad.xyz)
-[![Version](https://img.shields.io/badge/Node%20Version-v0.14.0-brightgreen?style=flat-square)](https://docs.monad.xyz)
+[![Version](https://img.shields.io/badge/Node%20Version-v0.14.1-brightgreen?style=flat-square)](https://docs.monad.xyz)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-10143-blue?style=flat-square)](https://docs.monad.xyz/developer-essentials/testnets)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
@@ -19,7 +19,7 @@
 
 > **Yazar:** HazenNetworkSolutions  
 > **Ağ:** Monad Testnet (Chain ID: 10143)  
-> **Versiyon:** v0.14.0  
+> **Versiyon:** v0.14.1  
 > **Son Güncelleme:** Nisan 2026
 
 ---
@@ -45,11 +45,11 @@
 - [Adım 16 — TrieDB Formatlama](#adım-16--triedb-formatlama)
 - [Adım 17 — Snapshot ile Başlangıç](#adım-17--snapshot-ile-başlangıç-hard-reset)
 - [Adım 18 — Servisleri Başlatma](#adım-18--servisleri-başlatma)
-- [Node İzleme](#node-i̇zleme)
-- [Güncel Kalmak](#güncel-kalmak)
 - [Adım 19 — Validator Kaydı (VDP)](#adım-19--validator-kaydı-vdp)
 - [Adım 20 — node.toml Validator Güncellemesi](#adım-20--nodetoml-validator-güncellemesi)
 - [Adım 21 — validator-info PR](#adım-21--validator-info-pr)
+- [Node İzleme](#node-i̇zleme)
+- [Güncel Kalmak](#güncel-kalmak)
 
 ---
 
@@ -243,6 +243,8 @@ Kurulumu doğrulayın:
 monad --version
 ```
 
+> Not: `--chain is required` çıktısı normaldir, binary'nin çalıştığını gösterir.
+
 ---
 
 ## Adım 8 — Kullanıcı ve Dizin Yapısı
@@ -312,10 +314,26 @@ echo "Success: New keystores generated"
 EOF
 ```
 
-> 🔐 **KRİTİK:** Aşağıdaki dosyaları dışarıya yedekleyin (şifre yöneticisi vb.):
-> - `/opt/monad/backup/secp-backup`
-> - `/opt/monad/backup/bls-backup`
-> - `/opt/monad/backup/keystore-password-backup`
+> 🔐 **KRİTİK:** Aşağıdaki dosyaları dışarıya yedekleyin (şifre yöneticisi, harici disk vb.). Bu dosyalar olmadan node kimliğinizi ve validator delegation'ınızı kurtaramazsınız.
+>
+> | Dosya | Konum | Açıklama |
+> |---|---|---|
+> | `id-secp` | `/home/monad/monad-bft/config/id-secp` | Node kimliği (SECP keystore) |
+> | `id-bls` | `/home/monad/monad-bft/config/id-bls` | Validator imzalama (BLS keystore) |
+> | `node.toml` | `/home/monad/monad-bft/config/node.toml` | Node konfigürasyonu |
+> | `keystore-password-backup` | `/opt/monad/backup/keystore-password-backup` | Keystore şifresi |
+> | `secp-backup` | `/opt/monad/backup/secp-backup` | SECP key yedeği |
+> | `bls-backup` | `/opt/monad/backup/bls-backup` | BLS key yedeği |
+>
+> Mac/PC'ye indirmek için:
+> ```bash
+> scp root@SUNUCU_IP:/home/monad/monad-bft/config/id-secp ./
+> scp root@SUNUCU_IP:/home/monad/monad-bft/config/id-bls ./
+> scp root@SUNUCU_IP:/home/monad/monad-bft/config/node.toml ./
+> scp root@SUNUCU_IP:/opt/monad/backup/keystore-password-backup ./
+> scp root@SUNUCU_IP:/opt/monad/backup/secp-backup ./
+> scp root@SUNUCU_IP:/opt/monad/backup/bls-backup ./
+> ```
 
 ---
 
@@ -505,8 +523,6 @@ systemctl status monad-bft monad-execution monad-rpc
 
 ---
 
----
-
 ## Adım 19 — Validator Kaydı (VDP)
 
 > Bu adım yalnızca [Monad Validator Delegation Program (VDP)](https://docs.monad.xyz/node-ops/validator-delegation-program/) kapsamında Foundation'dan token alan node operatörleri içindir.
@@ -613,13 +629,13 @@ Monad Foundation'ın talebi doğrultusunda `monad-developers/validator-info` rep
 ```json
 {
   "id": <VALIDATOR_ID>,
-  "name": "<NODE_ADI>",
+  "name": "<NODE_ADINIZ>",
   "secp": "<SECP_PUBLIC_KEY>",
   "bls": "<BLS_PUBLIC_KEY>",
-  "website": "https://hazennetworksolutions.com",
-  "description": "Enterprise Grade Validation | DevOps & Infrastructure Services",
-  "logo": "https://raw.githubusercontent.com/hazennetworksolutions/logo/main/test.jpg",
-  "x": "https://x.com/haznftofficial"
+  "website": "https://web-siteniz.com",
+  "description": "Açıklamanızı buraya yazın",
+  "logo": "https://raw.githubusercontent.com/repo/logo/main/logo.png",
+  "x": "https://x.com/x_hesabiniz"
 }
 ```
 
