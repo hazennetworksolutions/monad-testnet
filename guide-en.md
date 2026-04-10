@@ -312,10 +312,26 @@ echo "Success: New keystores generated"
 EOF
 ```
 
-> 🔐 **CRITICAL:** Back up these files to an external location (password manager, etc.):
-> - `/opt/monad/backup/secp-backup`
-> - `/opt/monad/backup/bls-backup`
-> - `/opt/monad/backup/keystore-password-backup`
+> 🔐 **CRITICAL:** Back up the following files to an external location (password manager, external drive, etc.). Without these files, you cannot recover your node identity or validator delegation.
+>
+> | File | Location | Description |
+> |---|---|---|
+> | `id-secp` | `/home/monad/monad-bft/config/id-secp` | Node identity (SECP keystore) |
+> | `id-bls` | `/home/monad/monad-bft/config/id-bls` | Validator signing (BLS keystore) |
+> | `node.toml` | `/home/monad/monad-bft/config/node.toml` | Node configuration |
+> | `keystore-password-backup` | `/opt/monad/backup/keystore-password-backup` | Keystore password |
+> | `secp-backup` | `/opt/monad/backup/secp-backup` | SECP key backup |
+> | `bls-backup` | `/opt/monad/backup/bls-backup` | BLS key backup |
+>
+> Download to your local machine:
+> ```bash
+> scp root@SERVER_IP:/home/monad/monad-bft/config/id-secp ./
+> scp root@SERVER_IP:/home/monad/monad-bft/config/id-bls ./
+> scp root@SERVER_IP:/home/monad/monad-bft/config/node.toml ./
+> scp root@SERVER_IP:/opt/monad/backup/keystore-password-backup ./
+> scp root@SERVER_IP:/opt/monad/backup/secp-backup ./
+> scp root@SERVER_IP:/opt/monad/backup/bls-backup ./
+> ```
 
 ---
 
