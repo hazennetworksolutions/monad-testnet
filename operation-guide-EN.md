@@ -1,15 +1,14 @@
 <div align="center">
 
-# 🟣 Monad Testnet Full Node & Validator Setup Guide
+# 🟣 Monad Testnet — Operation Guide (EN)
 
-**A complete guide to running a Monad testnet full node and registering as a validator**  
-*RAID management, TrieDB preparation, snapshot import, service startup, and validator registration — step by step.*
+**Quick installation, recovery and upgrade guide**  
+*From-scratch installation scripts, emergency recovery procedures and version upgrades.*
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Monad](https://img.shields.io/badge/Monad-Testnet-836EF9?style=flat-square)](https://monad.xyz)
 [![Version](https://img.shields.io/badge/Node%20Version-v0.14.1-brightgreen?style=flat-square)](https://docs.monad.xyz)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-10143-blue?style=flat-square)](https://docs.monad.xyz/developer-essentials/testnets)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
 [hazennetworksolutions.com](https://hazennetworksolutions.com)
 
@@ -20,37 +19,22 @@
 > **Author:** HazenNetworkSolutions  
 > **Network:** Monad Testnet (Chain ID: 10143)  
 > **Version:** v0.14.1  
-> **Last Updated:** April 2026
+> **Last Updated:** April 2026  
+> **Official Docs:** [docs.monad.xyz](https://docs.monad.xyz/node-ops)
 
 ---
 
 ## Table of Contents
 
 - [Hardware Requirements](#hardware-requirements)
-- [Step 1 — System Verification](#step-1--system-verification)
-- [Step 2 — System Update and Dependencies](#step-2--system-update-and-dependencies)
-- [Step 3 — Verify Kernel Version](#step-3--verify-kernel-version)
-- [Step 4 — Disable SMT (HyperThreading)](#step-4--disable-smt-hyperthreading)
-- [Step 5 — CPU Performance Mode and File Descriptor Limits](#step-5--cpu-performance-mode-and-file-descriptor-limits)
-- [Step 6 — Prepare the TrieDB Disk](#step-6--prepare-the-triedb-disk)
-- [Step 7 — Install the Monad Package](#step-7--install-the-monad-package)
-- [Step 8 — Create User and Directory Structure](#step-8--create-user-and-directory-structure)
-- [Step 9 — Download Configuration Files](#step-9--download-configuration-files)
-- [Step 10 — Generate Keystore Password](#step-10--generate-keystore-password)
-- [Step 11 — Generate BLS and SECP Keystores](#step-11--generate-bls-and-secp-keystores)
-- [Step 12 — Configure node.toml](#step-12--configure-nodetoml)
-- [Step 13 — Remote Configuration URLs](#step-13--remote-configuration-urls)
-- [Step 14 — Firewall Configuration](#step-14--firewall-configuration)
-- [Step 15 — Set File Permissions](#step-15--set-file-permissions)
-- [Step 16 — Format TrieDB](#step-16--format-triedb)
-- [Step 17 — Import Snapshot](#step-17--import-snapshot-hard-reset)
-- [Step 18 — Start the Node](#step-18--start-the-node)
-- [Step 19 — Validator Registration (VDP)](#step-19--validator-registration-vdp)
-- [Step 20 — Update node.toml for Validator](#step-20--update-nodetoml-for-validator)
-- [Step 21 — validator-info PR](#step-21--validator-info-pr)
-- [Step 22 — Configure OTEL Metrics Push](#step-22--configure-otel-metrics-push)
-- [Monitoring the Node](#monitoring-the-node)
-- [Staying Updated](#staying-updated)
+- [Section 1 — Emergency Recovery](#section-1--emergency-recovery)
+- [Section 2 — Version Upgrade](#section-2--version-upgrade)
+- [Section 3 — Monitoring and Diagnostics](#section-3--monitoring-and-diagnostics)
+- [Section 4 — Fresh Install: Phase 1A (Pre-Reboot)](#section-4--fresh-install-phase-1a-pre-reboot)
+- [Section 5 — Fresh Install: Phase 1B (Post-Reboot)](#section-5--fresh-install-phase-1b-post-reboot)
+- [Section 6 — Fresh Install: Phase 2](#section-6--fresh-install-phase-2)
+- [Section 7 — node.toml Signing and Final Steps](#section-7--nodetoml-signing-and-final-steps)
+- [Section 8 — Critical Backup](#section-8--critical-backup)
 
 ---
 
@@ -58,169 +42,464 @@
 
 | Component | Minimum |
 |---|---|
-| Operating System | Ubuntu 24.04+ (bare-metal, NOT a VM) |
+| Operating System | Ubuntu 24.04+ (bare-metal, not VM) |
 | CPU | 16 physical cores @ 4.5GHz (AMD Ryzen 7950X/9950X recommended) |
 | RAM | 32GB minimum (64GB recommended) |
-| Disk 1 | 2TB NVMe SSD (TrieDB — separate, no RAID) |
-| Disk 2 | 500GB+ NVMe SSD (OS, logs) |
+| Disk 1 (TrieDB) | 2TB NVMe SSD — dedicated, no RAID |
+| Disk 2 (OS) | 500GB+ NVMe SSD |
 | Kernel | Linux 6.8.0-60 or higher |
 
-> ⚠️ SMT/HyperThreading must be disabled via BIOS.  
-> ⚠️ The TrieDB disk must be a separate drive with no mounted filesystem and no RAID configured.
+> ⚠️ SMT/HyperThreading must be disabled from BIOS.  
+> ⚠️ The TrieDB disk must be a dedicated drive with no RAID configuration or mount point.
 
 ---
 
-## Step 1 — System Verification
+## Section 1 — Emergency Recovery
 
-After SSH-ing into your server, verify the system meets requirements:
+### 1.1 Soft Reset
+
+**When to use:** Node stopped briefly or needs a restart.
 
 ```bash
-lsb_release -a          # Should be Ubuntu 24.04
-uname -r                # Should be 6.8.0-60 or higher
-lscpu | grep -E "Model name|CPU\(s\)|Thread|Socket|Core"
-free -h                 # Minimum 32GB RAM
-lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
+systemctl restart monad-bft monad-execution monad-rpc
 ```
 
+Verify:
+```bash
+systemctl status monad-bft monad-execution monad-rpc --no-pager | grep Active
+journalctl -u monad-bft -f --no-pager | grep "committed block"
+```
+
+> Since v0.12.1, if `REMOTE_VALIDATORS_URL` and `REMOTE_FORKPOINT_URL` are defined in `.env`, a restart is sufficient — forkpoint and validators.toml are fetched automatically.
+
 ---
 
-## Step 2 — System Update and Dependencies
+### 1.2 Hard Reset
+
+**When to use:** Node is far behind, statesync cannot catch up, or state is corrupted.
 
 ```bash
+# 1. Stop services
+systemctl stop monad-bft monad-execution monad-rpc
+
+# 2. Clear all runtime data
+bash /opt/monad/scripts/reset-workspace.sh
+
+# 3. Download and import snapshot (~5 minutes)
+MF_BUCKET=https://bucket.monadinfra.com
+curl -sSL $MF_BUCKET/scripts/testnet/restore-from-snapshot.sh | bash
+
+# 4. Start services
+systemctl start monad-bft monad-execution monad-rpc
+```
+
+If the primary snapshot fails, use the alternative provider:
+```bash
+CL_BUCKET=https://pub-b0d0d7272c994851b4c8af22a766f571.r2.dev
+curl -sSL $CL_BUCKET/scripts/testnet/restore_from_snapshot.sh | bash
+```
+
+> ⚠️ Do not start services before the snapshot restore completes.
+
+---
+
+### 1.3 Server Migration (Key Migration)
+
+**When to use:** Server is unreachable, migrating to a new machine.
+
+1. Run **Phase 1A → Phase 1B → Phase 2** scripts on the new server
+2. In Phase 2, define `SECP_IKM` and `BLS_IKM` variables — keys will be restored from backup instead of generated
+3. Set `SELF_RECORD_SEQ_NUM` to **previous value + 1**
+4. Sign node.toml and start services
+
+> Validator identity is tied to the keys. As long as the keys remain the same, Validator ID and delegation are preserved.
+
+---
+
+## Section 2 — Version Upgrade
+
+New version announcements:
+- Telegram: [Monad Node Announcements](https://t.me/MonadNodeAnnouncements)
+- Discord: `#mainnet-fullnode-announcements`
+
+```bash
+# Set the new version here
+VERSION="0.14.1"
+
+apt update && apt install --reinstall monad=${VERSION} -y \
+  --allow-downgrades --allow-change-held-packages
+
+systemctl restart monad-bft monad-execution monad-rpc
+
+# Verify
+monad-rpc --version
+systemctl status monad-bft monad-execution monad-rpc --no-pager | grep Active
+```
+
+> Always read the release notes. If `node.toml` changes are required, update the relevant fields.
+
+---
+
+## Section 3 — Monitoring and Diagnostics
+
+### Service Status
+```bash
+systemctl status monad-bft monad-execution monad-rpc --no-pager | grep -E "Active|Main PID"
+```
+
+### Live Block Tracking
+```bash
+journalctl -u monad-bft -f --no-pager | grep "committed block"
+```
+
+### Block Height (RPC)
+```bash
+curl -s http://localhost:8080/ -X POST -H "Content-Type: application/json" \
+  --data '{"method":"eth_blockNumber","params":[],"id":1,"jsonrpc":"2.0"}' \
+  | jq -r '.result' | xargs printf "%d\n"
+```
+
+### monad-status (Comprehensive Status)
+```bash
+# Install once
+curl -sSL https://bucket.monadinfra.com/scripts/monad-status.sh \
+  -o /usr/local/bin/monad-status && chmod +x /usr/local/bin/monad-status
+
+# Run
+monad-status
+```
+
+### monlog (BFT Log Analysis)
+```bash
+# Grant monad user journal access (as root)
+usermod -a -G systemd-journal monad
+
+# Install and run as monad user
+su - monad
+cd /home/monad
+curl -sSL https://pub-b0d0d7272c994851b4c8af22a766f571.r2.dev/scripts/monlog -O
+chmod u+x ./monlog
+./monlog             # One-time run
+watch -d "./monlog"  # Live monitoring
+```
+
+### TrieDB Disk Usage
+```bash
+monad-mpt --storage /dev/triedb
+```
+
+> TrieDB auto-compacts at ~80% capacity. Monitor regularly.
+
+### Log Monitoring
+```bash
+journalctl -u monad-bft -f --no-pager
+journalctl -u monad-execution -f --no-pager
+journalctl -u monad-rpc -f --no-pager
+```
+
+### OTEL Metrics Push (VDP Required)
+
+The VDP requires metrics to be actively pushed to Monad Foundation's infrastructure. The script below automatically detects your SECP key and configures the OTEL Collector:
+
+```bash
+curl -fsSL -o /tmp/otel-validator-setup.sh https://bucket.monadinfra.com/tmp/otel-validator-setup.sh
+echo "92cca0add5456db13c792b6e1b484999724b348ebd41a40a73d7f42086f26a23  /tmp/otel-validator-setup.sh" | sha256sum -c && sudo bash /tmp/otel-validator-setup.sh
+```
+
+Verify:
+```bash
+curl -s http://localhost:8889/metrics | grep secp_key | head -3
+```
+
+> The script is idempotent — if already configured, it exits without making changes.
+
+---
+
+## Section 4 — Fresh Install: Phase 1A (Pre-Reboot)
+
+> Applied to a fresh Ubuntu 24.04 server.  
+> This script prepares the system and marks the RAID disk as faulty.  
+> **The script reboots the server at the end.**
+
+**What this script does:**
+- Updates the system and installs required dependencies
+- Checks kernel version
+- Disables SMT/HyperThreading via GRUB (`nosmt`)
+- Sets CPU performance mode and file descriptor limits
+- Marks the TrieDB disk as faulty in all RAID arrays
+- Reboots the server
+
+```bash
+bash <(cat <<'PHASE1A'
+#!/bin/bash
+set -euo pipefail
+echo "=== PHASE 1A: System Preparation ==="
+
+# ── 1. System Update and Dependencies ────────────────────────────
+echo "[1/6] Updating system..."
 apt update && apt upgrade -y
 apt install -y curl nvme-cli aria2 jq rsync parted cpufrequtils mdadm
-```
 
-If a kernel upgrade was installed, reboot:
+# ── 2. Kernel Check ──────────────────────────────────────────────
+KERNEL=$(uname -r)
+echo "[2/6] Current kernel: $KERNEL"
+echo "      Required: 6.8.0-60 or higher"
 
-```bash
-reboot
-```
+# ── 3. Disable SMT (HyperThreading) ──────────────────────────────
+echo "[3/6] Disabling SMT via GRUB (nosmt)..."
+if ! grep -q "nosmt" /etc/default/grub; then
+  sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 nosmt"/' \
+    /etc/default/grub
+  update-grub
+  echo "  ✅ nosmt added — will be active after reboot."
+else
+  echo "  ✅ nosmt already present."
+fi
 
----
-
-## Step 3 — Verify Kernel Version
-
-```bash
-uname -r
-```
-
-Output should be `6.8.0-60` or higher.
-
----
-
-## Step 4 — Disable SMT (HyperThreading)
-
-Monad requires SMT to be disabled for optimal performance.
-
-```bash
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"/GRUB_CMDLINE_LINUX_DEFAULT="\1 nosmt"/' /etc/default/grub
-update-grub
-reboot
-```
-
-Verify after reboot:
-
-```bash
-cat /sys/devices/system/cpu/smt/active   # Should output 0
-nproc                                    # Should output 16 (for Ryzen 7950X)
-```
-
----
-
-## Step 5 — CPU Performance Mode and File Descriptor Limits
-
-```bash
+# ── 4. CPU Performance Mode and File Descriptor Limits ───────────
+echo "[4/6] Configuring performance settings..."
 echo 'GOVERNOR="performance"' > /etc/default/cpufrequtils
-systemctl restart cpufrequtils
+systemctl restart cpufrequtils 2>/dev/null || true
 
-echo "* soft nofile 65536" >> /etc/security/limits.conf
-echo "* hard nofile 65536" >> /etc/security/limits.conf
+grep -q "nofile 65536" /etc/security/limits.conf || {
+  echo "* soft nofile 65536" >> /etc/security/limits.conf
+  echo "* hard nofile 65536" >> /etc/security/limits.conf
+}
+grep -q "DefaultLimitNOFILE" /etc/systemd/system.conf || \
+  echo "DefaultLimitNOFILE=65536" >> /etc/systemd/system.conf
+
+# ── 5. TrieDB Disk Selection and RAID Removal ────────────────────
+echo "[5/6] Listing disks..."
+lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
+echo ""
+echo "Which disk should be removed from RAID and used as TrieDB? (e.g.: nvme1n1)"
+echo "⚠️  WARNING: Selecting the wrong disk will cause data loss!"
+read -r TRIEDB_DRIVE
+TRIEDB_DRIVE=${TRIEDB_DRIVE:-nvme1n1}
+
+echo "Current RAID status:"
+cat /proc/mdstat
+echo ""
+echo "  → Marking /dev/$TRIEDB_DRIVE as faulty in all arrays..."
+
+for md in /dev/md0 /dev/md1 /dev/md2 /dev/md3 /dev/md4; do
+  [ -b "$md" ] || continue
+  for part in 1 2 3 4; do
+    DEV="/dev/${TRIEDB_DRIVE}p${part}"
+    [ -b "$DEV" ] || continue
+    echo "    mdadm $md --fail $DEV"
+    mdadm "$md" --fail "$DEV" 2>/dev/null || true
+    # Root partition cannot be removed while system is running (busy)
+    # Marking as faulty is sufficient before reboot
+    mdadm "$md" --remove "$DEV" 2>/dev/null || true
+  done
+done
+
+# Save disk name for Phase 1B
+echo "TRIEDB_DRIVE=$TRIEDB_DRIVE" > /root/.monad_setup_vars
+echo "  ✅ Disk marked as faulty. Phase 1B will be run after reboot."
+
+# ── 6. Reboot ────────────────────────────────────────────────────
+echo "[6/6] Rebooting system..."
+echo ""
+echo "┌──────────────────────────────────────────────────┐"
+echo "│  PHASE 1A COMPLETE — REBOOTING                  │"
+echo "│                                                  │"
+echo "│  After reboot: run PHASE 1B script              │"
+echo "│  (Section 5)                                    │"
+echo "└──────────────────────────────────────────────────┘"
+sleep 3
+reboot
+
+PHASE1A
+)
 ```
 
 ---
 
-## Step 6 — Prepare the TrieDB Disk
+## Section 5 — Fresh Install: Phase 1B (Post-Reboot)
 
-> ⚠️ Formatting the wrong drive will destroy your operating system! Proceed carefully.
+> Run after the Phase 1A reboot.  
+> Completes RAID cleanup, creates the TrieDB partition and sets up the udev symlink.
 
-### List available disks:
-
-```bash
-lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
-```
-
-Identify the drive with no mountpoints and no RAID. Set it as `TRIEDB_DRIVE`.
-
-### If the disk is part of a RAID1 array, remove it first:
+**What this script does:**
+- Verifies SMT is disabled
+- Completely removes RAID metadata from the disk (`zero-superblock` + `wipefs`)
+- Checks LBA format (must be 512 bytes)
+- Creates a GPT partition and `/dev/triedb` symlink
 
 ```bash
-# Check RAID status
-cat /proc/mdstat
+bash <(cat <<'PHASE1B'
+#!/bin/bash
+set -euo pipefail
+echo "=== PHASE 1B: TrieDB Disk Preparation ==="
 
-# Remove disk from all arrays (example with nvme1n1)
-mdadm /dev/md2 --fail /dev/nvme1n1p4 && mdadm /dev/md2 --remove /dev/nvme1n1p4
-mdadm /dev/md0 --fail /dev/nvme1n1p2 && mdadm /dev/md0 --remove /dev/nvme1n1p2
-mdadm /dev/md1 --fail /dev/nvme1n1p3 && mdadm /dev/md1 --remove /dev/nvme1n1p3
+# Read record from Phase 1A
+if [ -f /root/.monad_setup_vars ]; then
+  source /root/.monad_setup_vars
+else
+  echo "⚠️  /root/.monad_setup_vars not found."
+  lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
+  echo "TrieDB disk? (e.g.: nvme1n1)"
+  read -r TRIEDB_DRIVE
+fi
+echo "  TrieDB disk: /dev/$TRIEDB_DRIVE"
 
-# Reboot if root partition is busy
-reboot
+# ── 1. SMT Verification ──────────────────────────────────────────
+echo "[1/5] Checking SMT..."
+SMT=$(cat /sys/devices/system/cpu/smt/active 2>/dev/null || echo "?")
+CORES=$(nproc)
+if [ "$SMT" = "0" ]; then
+  echo "  ✅ SMT disabled | CPU cores: $CORES"
+else
+  echo "  ⚠️  SMT still active (value: $SMT) — check BIOS settings."
+fi
 
-# Wipe RAID metadata
-mdadm --zero-superblock /dev/nvme1n1p2
-mdadm --zero-superblock /dev/nvme1n1p3
-mdadm --zero-superblock /dev/nvme1n1p4
+# ── 2. Kernel Verification ───────────────────────────────────────
+echo "[2/5] Kernel: $(uname -r)"
 
-# Wipe the entire disk
-wipefs -a /dev/nvme1n1
-```
+# ── 3. RAID Metadata Cleanup ─────────────────────────────────────
+echo "[3/5] Cleaning RAID metadata..."
 
-### Create partition:
+# Remove remaining array memberships
+for md in /dev/md0 /dev/md1 /dev/md2 /dev/md3 /dev/md4; do
+  [ -b "$md" ] || continue
+  for part in 1 2 3 4; do
+    DEV="/dev/${TRIEDB_DRIVE}p${part}"
+    [ -b "$DEV" ] || continue
+    mdadm "$md" --remove "$DEV" 2>/dev/null || true
+  done
+done
 
-```bash
-parted /dev/nvme1n1 mklabel gpt
-parted /dev/nvme1n1 mkpart triedb 0% 100%
-```
+# Zero superblocks
+for part in 1 2 3 4; do
+  DEV="/dev/${TRIEDB_DRIVE}p${part}"
+  if [ -b "$DEV" ]; then
+    echo "  → zero-superblock: $DEV"
+    mdadm --zero-superblock "$DEV" 2>/dev/null || true
+  fi
+done
 
-### Create udev rule (Monad uses /dev/triedb symlink):
+# Wipe all signatures
+echo "  → wipefs: /dev/$TRIEDB_DRIVE"
+wipefs -a /dev/$TRIEDB_DRIVE
 
-```bash
-PARTUUID=$(lsblk -o PARTUUID /dev/nvme1n1 | tail -n 1)
-echo "Disk PartUUID: ${PARTUUID}"
+# ── 4. LBA Format Check ──────────────────────────────────────────
+echo "[4/5] Checking LBA format..."
+LBA_INFO=$(nvme id-ns -H /dev/$TRIEDB_DRIVE 2>/dev/null | grep -i "LBA Format" | grep -i "in use" || echo "")
+if echo "$LBA_INFO" | grep -q "512"; then
+  echo "  ✅ LBA format: 512 bytes (correct)"
+elif [ -n "$LBA_INFO" ]; then
+  echo "  ⚠️  LBA format is not 512 bytes. Fixing..."
+  nvme format --lbaf=0 /dev/$TRIEDB_DRIVE
+  echo "  ✅ LBA format corrected."
+else
+  echo "  ℹ️  Could not determine LBA format, continuing."
+fi
 
-echo "ENV{ID_PART_ENTRY_UUID}==\"$PARTUUID\", MODE=\"0666\", SYMLINK+=\"triedb\"" \
-  | tee /etc/udev/rules.d/99-triedb.rules
+# ── 5. Partition Creation and udev Rule ──────────────────────────
+echo "[5/5] Creating partition and udev symlink..."
+parted /dev/$TRIEDB_DRIVE mklabel gpt
+parted /dev/$TRIEDB_DRIVE mkpart triedb 0% 100%
+sleep 2
+udevadm settle
+
+PARTUUID=$(lsblk -o PARTUUID /dev/${TRIEDB_DRIVE}p1 2>/dev/null | grep -v PARTUUID | tr -d ' ')
+if [ -z "$PARTUUID" ]; then
+  echo "  ⚠️  Could not get PARTUUID. Check lsblk output:"
+  lsblk -o NAME,PARTUUID /dev/$TRIEDB_DRIVE
+  exit 1
+fi
+echo "  PartUUID: $PARTUUID"
+
+cat > /etc/udev/rules.d/99-triedb.rules <<EOF
+ENV{ID_PART_ENTRY_UUID}=="$PARTUUID", MODE="0666", SYMLINK+="triedb"
+EOF
 
 udevadm trigger
 udevadm control --reload
 udevadm settle
+sleep 2
 
-ls -l /dev/triedb   # Should point to nvme1n1p1
-```
+# Update record
+echo "TRIEDB_DRIVE=$TRIEDB_DRIVE" > /root/.monad_setup_vars
 
-### Verify LBA format (must be 512 bytes):
+# ── Verification ─────────────────────────────────────────────────
+echo ""
+if ls -l /dev/triedb &>/dev/null; then
+  echo "┌──────────────────────────────────────────────────┐"
+  echo "│  PHASE 1B COMPLETE ✅                            │"
+  echo "│                                                  │"
+  echo "│  /dev/triedb is ready:"
+  ls -l /dev/triedb | sed 's/^/│  /'
+  echo "│                                                  │"
+  echo "│  NEXT: Run PHASE 2 script (Section 6)           │"
+  echo "└──────────────────────────────────────────────────┘"
+else
+  echo "┌──────────────────────────────────────────────────┐"
+  echo "│  ⚠️  /dev/triedb not created!                    │"
+  echo "│  Check the udev rule and PARTUUID.               │"
+  echo "└──────────────────────────────────────────────────┘"
+  exit 1
+fi
 
-```bash
-nvme id-ns -H /dev/nvme1n1 | grep 'LBA Format' | grep 'in use'
-```
-
-Expected output: `Data Size: 512 bytes (in use)`  
-If not, fix it:
-
-```bash
-nvme format --lbaf=0 /dev/nvme1n1
+PHASE1B
+)
 ```
 
 ---
 
-## Step 7 — Install the Monad Package
+## Section 6 — Fresh Install: Phase 2
 
-Configure the APT repository:
+> Run after Phase 1B completes successfully.  
+> Installs Monad, sets up user and directory structure, keystores, node.toml and firewall.
+
+### 6.1 Define Variables
+
+Fill in and export these before running the script:
 
 ```bash
+# Required
+export NODE_NAME="full_PROVIDERNAME"
+# Example: export NODE_NAME="full_HazenNetworkSolutions"
+
+export BENEFICIARY="0x0000000000000000000000000000000000000000"
+# Use burn address for full nodes.
+# Use your own EOA address when registering as a validator.
+
+export SELF_RECORD_SEQ_NUM=1
+# Set to 1 for first install. Increment by 1 on each server migration.
+
+# If restoring existing keys (server migration):
+# Get IKM values from the "Keystore secret:" line in backup files
+# export SECP_IKM="306c9aa1..."
+# export BLS_IKM="8ec77aeb..."
+```
+
+### 6.2 Phase 2 Script
+
+```bash
+bash <(cat <<'PHASE2'
+#!/bin/bash
+set -euo pipefail
+echo "=== PHASE 2: Monad Installation ==="
+
+# Variable check
+: "${NODE_NAME:?Error: NODE_NAME is not defined}"
+: "${BENEFICIARY:?Error: BENEFICIARY is not defined}"
+: "${SELF_RECORD_SEQ_NUM:?Error: SELF_RECORD_SEQ_NUM is not defined}"
+
+# ── 1. SMT Verification ──────────────────────────────────────────
+echo "[1/9] Checking SMT..."
+SMT=$(cat /sys/devices/system/cpu/smt/active 2>/dev/null || echo "?")
+[ "$SMT" = "0" ] && echo "  ✅ SMT disabled — $(nproc) cores" \
+  || echo "  ⚠️  SMT active (value: $SMT)"
+
+# ── 2. Monad APT Repo and Package ────────────────────────────────
+echo "[2/9] Setting up Monad APT repo..."
 mkdir -p /etc/apt/keyrings
 
-cat <<EOF > /etc/apt/sources.list.d/category-labs.sources
+cat > /etc/apt/sources.list.d/category-labs.sources <<'EOF'
 Types: deb
 URIs: https://pkg.category.xyz/
 Suites: noble
@@ -230,454 +509,293 @@ EOF
 
 curl -fsSL https://pkg.category.xyz/keys/public-key.asc \
   | gpg --dearmor --yes -o /etc/apt/keyrings/category-labs.gpg
-```
 
-Install the package:
-
-```bash
 apt update && apt install -y monad
-```
+echo "  ✅ Monad installed: $(monad-rpc --version 2>&1 | grep -o 'v[0-9.]*' | head -1)"
 
-Verify installation:
+# ── 3. User and Directory Structure ──────────────────────────────
+echo "[3/9] Creating monad user and directories..."
+id monad &>/dev/null || useradd -m -s /bin/bash monad
+mkdir -p \
+  /home/monad/monad-bft/config \
+  /home/monad/monad-bft/ledger \
+  /home/monad/monad-bft/config/forkpoint \
+  /home/monad/monad-bft/config/validators \
+  /opt/monad/backup
 
-```bash
-monad --version
-```
-
-> Note: `--chain is required` output is normal — it confirms the binary is working.
-
----
-
-## Step 8 — Create User and Directory Structure
-
-```bash
-useradd -m -s /bin/bash monad
-
-mkdir -p /home/monad/monad-bft/config \
-         /home/monad/monad-bft/ledger \
-         /home/monad/monad-bft/config/forkpoint \
-         /home/monad/monad-bft/config/validators
-```
-
----
-
-## Step 9 — Download Configuration Files
-
-```bash
+# ── 4. Configuration Files ───────────────────────────────────────
+echo "[4/9] Downloading config files..."
 MF_BUCKET=https://bucket.monadinfra.com
-curl -o /home/monad/.env $MF_BUCKET/config/testnet/latest/.env.example
-curl -o /home/monad/monad-bft/config/node.toml $MF_BUCKET/config/testnet/latest/full-node-node.toml
-```
+curl -fsSL -o /home/monad/.env \
+  $MF_BUCKET/config/testnet/latest/.env.example
+curl -fsSL -o /home/monad/monad-bft/config/node.toml \
+  $MF_BUCKET/config/testnet/latest/full-node-node.toml
+echo "  ✅ .env and node.toml downloaded."
 
----
+# ── 5. Keystore Password ─────────────────────────────────────────
+echo "[5/9] Generating keystore password..."
+KP="$(openssl rand -base64 32)"
 
-## Step 10 — Generate Keystore Password
-
-```bash
-sed -i "s|^KEYSTORE_PASSWORD=$|KEYSTORE_PASSWORD='$(openssl rand -base64 32)'|" /home/monad/.env
-source /home/monad/.env
-
-mkdir -p /opt/monad/backup/
-echo "Keystore password: ${KEYSTORE_PASSWORD}" > /opt/monad/backup/keystore-password-backup
-```
-
----
-
-## Step 11 — Generate BLS and SECP Keystores
-
-```bash
-bash <<'EOF'
-set -e
-
-source /home/monad/.env
-
-if [[ -z "$KEYSTORE_PASSWORD" || \
-      -f /home/monad/monad-bft/config/id-secp || \
-      -f /home/monad/monad-bft/config/id-bls ]]; then
-  echo "Skipping: missing KEYSTORE_PASSWORD or keys already exist."
-  exit 1
+# Find and fill the KEYSTORE_PASSWORD= line in .env
+if grep -q "^KEYSTORE_PASSWORD=" /home/monad/.env; then
+  sed -i "s|^KEYSTORE_PASSWORD=.*|KEYSTORE_PASSWORD='${KP}'|" /home/monad/.env
+else
+  echo "KEYSTORE_PASSWORD='${KP}'" >> /home/monad/.env
 fi
 
-monad-keystore create \
-  --key-type secp \
-  --keystore-path /home/monad/monad-bft/config/id-secp \
-  --password "${KEYSTORE_PASSWORD}" > /opt/monad/backup/secp-backup
-
-monad-keystore create \
-  --key-type bls \
-  --keystore-path /home/monad/monad-bft/config/id-bls \
-  --password "${KEYSTORE_PASSWORD}" > /opt/monad/backup/bls-backup
-
-grep "public key" /opt/monad/backup/secp-backup /opt/monad/backup/bls-backup \
-  | tee /home/monad/pubkey-secp-bls
-
-echo "Success: New keystores generated"
+# Add remote config URLs (for automatic fetching since v0.12.1)
+grep -q "REMOTE_VALIDATORS_URL" /home/monad/.env || cat >> /home/monad/.env <<'EOF'
+REMOTE_VALIDATORS_URL='https://bucket.monadinfra.com/validators/testnet/validators.toml'
+REMOTE_FORKPOINT_URL='https://bucket.monadinfra.com/forkpoint/testnet/forkpoint.toml'
 EOF
-```
 
-> 🔐 **CRITICAL:** Back up the following files to an external location (password manager, external drive, etc.). Without these files, you cannot recover your node identity or validator delegation.
->
-> | File | Location | Description |
-> |---|---|---|
-> | `id-secp` | `/home/monad/monad-bft/config/id-secp` | Node identity (SECP keystore) |
-> | `id-bls` | `/home/monad/monad-bft/config/id-bls` | Validator signing (BLS keystore) |
-> | `node.toml` | `/home/monad/monad-bft/config/node.toml` | Node configuration |
-> | `keystore-password-backup` | `/opt/monad/backup/keystore-password-backup` | Keystore password |
-> | `secp-backup` | `/opt/monad/backup/secp-backup` | SECP key backup |
-> | `bls-backup` | `/opt/monad/backup/bls-backup` | BLS key backup |
->
-> Download to your local machine:
-> ```bash
-> scp root@SERVER_IP:/home/monad/monad-bft/config/id-secp ./
-> scp root@SERVER_IP:/home/monad/monad-bft/config/id-bls ./
-> scp root@SERVER_IP:/home/monad/monad-bft/config/node.toml ./
-> scp root@SERVER_IP:/opt/monad/backup/keystore-password-backup ./
-> scp root@SERVER_IP:/opt/monad/backup/secp-backup ./
-> scp root@SERVER_IP:/opt/monad/backup/bls-backup ./
-> ```
+# Backup the password
+echo "Keystore password: ${KP}" > /opt/monad/backup/keystore-password-backup
+echo "  ✅ Keystore password: $KP"
+echo "  ✅ Backup: /opt/monad/backup/keystore-password-backup"
+
+source /home/monad/.env
+
+# ── 6. Key Generation or Restore ─────────────────────────────────
+echo "[6/9] Setting up keys..."
+
+if [ -n "${SECP_IKM:-}" ] && [ -n "${BLS_IKM:-}" ]; then
+  echo "  → Restoring keys from IKM..."
+
+  monad-keystore import \
+    --ikm "$SECP_IKM" \
+    --password "$KEYSTORE_PASSWORD" \
+    --keystore-path /home/monad/monad-bft/config/id-secp \
+    --key-type secp
+
+  monad-keystore import \
+    --ikm "$BLS_IKM" \
+    --password "$KEYSTORE_PASSWORD" \
+    --keystore-path /home/monad/monad-bft/config/id-bls \
+    --key-type bls
+
+  # Restore path: use recover to create backup files
+  monad-keystore recover \
+    --password "$KEYSTORE_PASSWORD" \
+    --keystore-path /home/monad/monad-bft/config/id-secp \
+    --key-type secp > /opt/monad/backup/secp-backup
+
+  monad-keystore recover \
+    --password "$KEYSTORE_PASSWORD" \
+    --keystore-path /home/monad/monad-bft/config/id-bls \
+    --key-type bls > /opt/monad/backup/bls-backup
+
+  echo "  ✅ Keys restored."
+else
+  echo "  → Generating new keys..."
+
+  # create output includes the IKM (Keystore secret) — write directly to backup
+  monad-keystore create \
+    --key-type secp \
+    --keystore-path /home/monad/monad-bft/config/id-secp \
+    --password "${KEYSTORE_PASSWORD}" \
+    > /opt/monad/backup/secp-backup
+
+  monad-keystore create \
+    --key-type bls \
+    --keystore-path /home/monad/monad-bft/config/id-bls \
+    --password "${KEYSTORE_PASSWORD}" \
+    > /opt/monad/backup/bls-backup
+
+  echo "  ✅ Keys generated."
+fi
+
+# Save and display public keys
+grep "public key" /opt/monad/backup/secp-backup \
+                  /opt/monad/backup/bls-backup \
+  | tee /home/monad/pubkey-secp-bls || true
+echo "  ✅ Backup files ready."
+
+# ── 7. node.toml Basic Settings ──────────────────────────────────
+echo "[7/9] Configuring node.toml..."
+sed -i "s|beneficiary = \".*\"|beneficiary = \"${BENEFICIARY}\"|" \
+  /home/monad/monad-bft/config/node.toml
+sed -i "s|node_name = \".*\"|node_name = \"${NODE_NAME}\"|" \
+  /home/monad/monad-bft/config/node.toml
+echo "  ✅ beneficiary and node_name set."
+
+# ── 8. Firewall ──────────────────────────────────────────────────
+echo "[8/9] Configuring firewall..."
+ufw allow ssh
+ufw allow 8000
+ufw allow 8001
+ufw --force enable
+# UDP spam protection (resets on reboot; install iptables-persistent to make it permanent)
+iptables -I INPUT -p udp --dport 8000 -m length --length 0:1400 -j DROP
+echo "  ✅ UFW enabled. Open ports: 22 (SSH), 8000, 8001"
+echo "  ℹ️  iptables rule resets on reboot. For persistence: apt install iptables-persistent"
+
+# ── 9. File Permissions ──────────────────────────────────────────
+echo "[9/9] Setting file permissions..."
+chown -R monad:monad /home/monad/
+echo "  ✅ /home/monad permissions set."
+
+# Save SELF_RECORD_SEQ_NUM for signing step
+echo "SELF_RECORD_SEQ_NUM=${SELF_RECORD_SEQ_NUM}" >> /root/.monad_setup_vars
+
+echo ""
+echo "┌──────────────────────────────────────────────────────────┐"
+echo "│  PHASE 2 COMPLETE ✅                                     │"
+echo "│                                                          │"
+echo "│  NEXT STEPS (Section 7):                                │"
+echo "│  1. Sign node.toml [peer_discovery] section             │"
+echo "│  2. Format TrieDB                                        │"
+echo "│  3. Load snapshot                                        │"
+echo "│  4. Start services                                       │"
+echo "└──────────────────────────────────────────────────────────┘"
+
+PHASE2
+)
+```
 
 ---
 
-## Step 12 — Configure node.toml
+## Section 7 — node.toml Signing and Final Steps
+
+### 7.1 Sign and Fill node.toml [peer_discovery]
+
+```bash
+# Get server public IP
+SERVER_IP=$(curl -s4 ifconfig.me)
+echo "Server IP: $SERVER_IP"
+
+# Check self_record_seq_num
+source /root/.monad_setup_vars 2>/dev/null || true
+echo "Seq num: ${SELF_RECORD_SEQ_NUM:-1}"
+
+# Generate signature
+source /home/monad/.env
+monad-sign-name-record \
+  --address ${SERVER_IP}:8000 \
+  --authenticated-udp-port 8001 \
+  --keystore-path /home/monad/monad-bft/config/id-secp \
+  --password "${KEYSTORE_PASSWORD}" \
+  --self-record-seq-num ${SELF_RECORD_SEQ_NUM:-1}
+```
+
+Write the 3 output values into the `[peer_discovery]` section of `node.toml`:
 
 ```bash
 nano /home/monad/monad-bft/config/node.toml
 ```
-
-Edit the following fields:
-
-| Field | Value |
-|---|---|
-| `beneficiary` | `"0x0000000000000000000000000000000000000000"` (burn address for full nodes) |
-| `node_name` | `"full_PROVIDERNAME"` |
-
-### Sign the Name Record
-
-Get your server's public IP:
-
-```bash
-curl -s4 ifconfig.me
-```
-
-Generate the signature:
-
-```bash
-source /home/monad/.env
-monad-sign-name-record \
-  --address <SERVER_IP>:8000 \
-  --authenticated-udp-port 8001 \
-  --keystore-path /home/monad/monad-bft/config/id-secp \
-  --password "${KEYSTORE_PASSWORD}" \
-  --self-record-seq-num 1
-```
-
-Update the `[peer_discovery]` section in `node.toml`:
 
 ```toml
 self_address = "<SERVER_IP>:8000"
 self_record_seq_num = 1
-self_name_record_sig = "<SIGNATURE_OUTPUT>"
+self_name_record_sig = "<SIGNATURE_HEX>"
 ```
 
 Also verify these settings are correct:
-- `enable_client = true` under `[fullnode_raptorcast]`
-- `expand_to_group = true` under `[statesync]`
+```toml
+# In [fullnode_raptorcast] section:
+enable_client = true
 
----
-
-## Step 13 — Remote Configuration URLs
-
-```bash
-cat >> /home/monad/.env << 'EOF'
-REMOTE_VALIDATORS_URL='https://bucket.monadinfra.com/validators/testnet/validators.toml'
-REMOTE_FORKPOINT_URL='https://bucket.monadinfra.com/forkpoint/testnet/forkpoint.toml'
-EOF
+# In [statesync] section:
+expand_to_group = true
 ```
 
----
-
-## Step 14 — Firewall Configuration
-
-```bash
-ufw allow ssh
-ufw allow 8000
-ufw allow 8001
-ufw enable
-ufw status
-```
-
-Anti-spam iptables rule:
-
-```bash
-iptables -I INPUT -p udp --dport 8000 -m length --length 0:1400 -j DROP
-```
-
-> Note: This iptables rule resets on reboot. Use `iptables-persistent` to make it permanent.
-
----
-
-## Step 15 — Set File Permissions
-
-```bash
-chown -R monad:monad /home/monad/
-```
-
----
-
-## Step 16 — Format TrieDB
+### 7.2 Format TrieDB
 
 ```bash
 systemctl start monad-mpt
-journalctl -u monad-mpt -n 14 -o cat
+sleep 10
+journalctl -u monad-mpt -n 20 -o cat
 ```
 
-Expected output:
-
+Expected output at the end:
 ```
 MPT database on storages:
           Capacity           Used      %  Path
-           1.75 Tb      256.03 Mb  0.01%  "/dev/nvme1n1p1"
+           X.XX Tb      ...Mb  0.01%  "/dev/..."
 ...
 monad-mpt.service: Deactivated successfully.
 ```
 
----
-
-## Step 17 — Import Snapshot (Hard Reset)
+### 7.3 Load Snapshot
 
 ```bash
+# Clear workspace
 bash /opt/monad/scripts/reset-workspace.sh
-```
 
-Download and import the latest snapshot:
-
-```bash
+# Download and import snapshot (~5 minutes)
 MF_BUCKET=https://bucket.monadinfra.com
 curl -sSL $MF_BUCKET/scripts/testnet/restore-from-snapshot.sh | bash
 ```
 
-This takes approximately 5 minutes. Wait for:
+Successful output:
 ```
 Snapshot imported at block ID: XXXXXXXX
 ```
 
----
-
-## Step 18 — Start the Node
+### 7.4 Start Services
 
 ```bash
 systemctl enable monad-bft monad-execution monad-rpc
 systemctl start monad-bft monad-execution monad-rpc
+
+# Check status
+sleep 5
+systemctl status monad-bft monad-execution monad-rpc --no-pager | grep Active
 ```
 
-Verify all services are running:
+All 3 services should show `active (running)`.
+
+### 7.5 Live Verification
 
 ```bash
-systemctl status monad-bft monad-execution monad-rpc --no-pager
-```
-
-All three services should show `active (running)`.
-
----
-
-## Monitoring the Node
-
-### Watch live block commits:
-
-```bash
+# Block tracking — should see committed blocks within a few seconds
 journalctl -u monad-bft -f --no-pager | grep "committed block"
 ```
 
-Expected output:
-```
-"committed block","num_tx":4,"block_num":22917311
-```
+---
 
-### Full logs:
+## Section 8 — Critical Backup
+
+> ⚠️ Immediately after installation, back up these files to a secure location outside the server.  
+> Without these files, you cannot recover your node identity or validator delegation.
+
+| File | Server Location | Content |
+|---|---|---|
+| `id-secp` | `/home/monad/monad-bft/config/id-secp` | Node identity (SECP keystore) |
+| `id-bls` | `/home/monad/monad-bft/config/id-bls` | Validator signing (BLS keystore) |
+| `keystore-password-backup` | `/opt/monad/backup/keystore-password-backup` | Keystore password |
+| `secp-backup` | `/opt/monad/backup/secp-backup` | SECP key + IKM |
+| `bls-backup` | `/opt/monad/backup/bls-backup` | BLS key + IKM |
+| `node.toml` | `/home/monad/monad-bft/config/node.toml` | Node configuration |
+
+Download to Mac/PC:
 
 ```bash
-journalctl -u monad-bft -f --no-pager
-journalctl -u monad-execution -f --no-pager
-journalctl -u monad-rpc -f --no-pager
-```
+SERVER_IP="YOUR_SERVER_IP_HERE"
 
-### Service management:
-
-```bash
-# Restart services
-systemctl restart monad-bft monad-execution monad-rpc
-
-# Stop services
-systemctl stop monad-bft monad-execution monad-rpc
-
-# Check status
-systemctl status monad-bft monad-execution monad-rpc
+scp root@${SERVER_IP}:/home/monad/monad-bft/config/id-secp ./
+scp root@${SERVER_IP}:/home/monad/monad-bft/config/id-bls ./
+scp root@${SERVER_IP}:/opt/monad/backup/keystore-password-backup ./
+scp root@${SERVER_IP}:/opt/monad/backup/secp-backup ./
+scp root@${SERVER_IP}:/opt/monad/backup/bls-backup ./
+scp root@${SERVER_IP}:/home/monad/monad-bft/config/node.toml ./
 ```
 
 ---
 
-## Staying Updated
+## Stay Updated
 
 - Telegram: [Monad Node Announcements](https://t.me/MonadNodeAnnouncements)
 - Discord: [Monad Developer Discord](https://discord.gg/monaddev)
-- Official Docs: [docs.monad.xyz](https://docs.monad.xyz/node-ops/full-node-installation)
+- Official Docs: [docs.monad.xyz/node-ops](https://docs.monad.xyz/node-ops)
 
 ---
 
----
+<div align="center">
 
-## Step 19 — Validator Registration (VDP)
-
-> This step is only for node operators who have received tokens through the [Monad Validator Delegation Program (VDP)](https://docs.monad.xyz/node-ops/validator-delegation-program/).
-
-### Requirements
-- At least **100,000 MON** sent to your EOA address
-- Full node running and synced to network tip
-
-### Install staking-sdk-cli
-
-```bash
-apt install -y python3.12-venv git
-git clone https://github.com/monad-developers/staking-sdk-cli.git
-cd staking-sdk-cli
-python3 -m venv venv
-source venv/bin/activate
-pip install .
-cp staking-cli/config.toml.example config.toml
-```
-
-### Edit config.toml
-
-Fill in the `funded_address_private_key` field with your EOA private key:
-
-```bash
-nano config.toml
-```
-
-```toml
-funded_address_private_key = "0xYOUR_EOA_PRIVATE_KEY"
-```
-
-> ⚠️ Private key must include the `0x` prefix. Keep this file secure, never share it.
-
-### Extract Node Private Keys
-
-> ⚠️ Do NOT use keys from backup files — recover them from the keystore:
-
-```bash
-source /home/monad/.env
-monad-keystore recover --password "$KEYSTORE_PASSWORD" \
-  --keystore-path /home/monad/monad-bft/config/id-secp --key-type secp
-
-monad-keystore recover --password "$KEYSTORE_PASSWORD" \
-  --keystore-path /home/monad/monad-bft/config/id-bls --key-type bls
-```
-
-Note the output:
-- **SECP private key** → enter **without** `0x` prefix
-- **BLS private key** → enter **with** `0x` prefix
-
-### Run addValidator (TUI)
-
-```bash
-python staking-cli/main.py tui
-```
-
-1. Select `1` (Add Validator)
-2. Fill in the values:
-   - SECP Private Key → without `0x`
-   - BLS Private Key → with `0x`
-   - Amount → `100000`
-   - Authorized Address → your EOA address
-3. Verify that the **Derived Public Keys** match your actual keys
-4. Confirm with `y`
-
-Successful output:
-```
-Status: ✅ Success
-Validator Created! ID: <VALIDATOR_ID>
-```
-
----
-
-## Step 20 — Update node.toml for Validator
-
-Once your validator is active, block rewards are sent to the `beneficiary` address. Replace the burn address with your own EOA:
-
-```bash
-nano /home/monad/monad-bft/config/node.toml
-```
-
-Update the following line:
-
-```toml
-beneficiary = "0xYOUR_EOA_ADDRESS"
-```
-
-Save and restart services:
-
-```bash
-systemctl restart monad-bft monad-execution monad-rpc
-```
-
----
-
-## Step 21 — validator-info PR
-
-As requested by the Monad Foundation, submit a PR to the `monad-developers/validator-info` repository:
-
-1. **Fork** [https://github.com/monad-developers/validator-info](https://github.com/monad-developers/validator-info)
-2. Create `<SECP_KEY>.json` inside the `testnet/` folder:
-
-```json
-{
-  "id": <YOUR_VALIDATOR_ID>,
-  "name": "<YOUR_NODE_NAME>",
-  "secp": "<YOUR_SECP_PUBLIC_KEY>",
-  "bls": "<YOUR_BLS_PUBLIC_KEY>",
-  "website": "https://your-website.com",
-  "description": "Your description here",
-  "logo": "https://raw.githubusercontent.com/your-repo/logo/main/logo.png",
-  "x": "https://x.com/your_x_handle"
-}
-```
-
-3. Commit the file and open a pull request
-4. Share the PR link with the Monad Foundation via Telegram/Discord
-
-> ⚠️ PRs that are not shared via Discord/Telegram will not be reviewed.
-
----
-
-## Step 22 — Configure OTEL Metrics Push
-
-The VDP requires all validators to push metrics to Monad Foundation's monitoring infrastructure. The script below automatically detects your SECP key and configures the OTEL Collector to push to Monad Foundation's endpoint.
-
-```bash
-curl -fsSL -o /tmp/otel-validator-setup.sh https://bucket.monadinfra.com/tmp/otel-validator-setup.sh
-echo "92cca0add5456db13c792b6e1b484999724b348ebd41a40a73d7f42086f26a23  /tmp/otel-validator-setup.sh" | sha256sum -c && sudo bash /tmp/otel-validator-setup.sh
-```
-
-Successful output:
-```
-/tmp/otel-validator-setup.sh: OK
-Secp public key: <SECP_PUBLIC_KEY>
-✔ METRIC PUSHING WITH SECP KEY CONFIGURED
-```
-
-Verify the configuration:
-
-```bash
-curl -s http://localhost:8889/metrics | grep secp_key | head -5
-```
-
-If metric lines containing `secp_key="<SECP_PUBLIC_KEY>"` appear, push is active.
-
-> Note: The script is idempotent — if already configured, it exits without making changes.
-
----
-
-## About the Author
-
-This guide was prepared by **HazenNetworkSolutions**.  
+**HazenNetworkSolutions**  
 🌐 [hazennetworksolutions.com](https://hazennetworksolutions.com)
+
+*Monad v0.14.1 — April 2026*
+
+</div>
