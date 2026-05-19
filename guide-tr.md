@@ -48,6 +48,7 @@
 - [Adım 19 — Validator Kaydı (VDP)](#adım-19--validator-kaydı-vdp)
 - [Adım 20 — node.toml Validator Güncellemesi](#adım-20--nodetoml-validator-güncellemesi)
 - [Adım 21 — validator-info PR](#adım-21--validator-info-pr)
+- [Adım 22 — OTEL Metrics Push Yapılandırması](#adım-22--otel-metrics-push-yapılandırması)
 - [Node İzleme](#node-i̇zleme)
 - [Güncel Kalmak](#güncel-kalmak)
 
@@ -643,6 +644,34 @@ Monad Foundation'ın talebi doğrultusunda `monad-developers/validator-info` rep
 4. PR linkini Monad Foundation ekibine Telegram/Discord üzerinden ilet
 
 > ⚠️ Discord/Telegram'dan bildirilmeyen PR'lar incelenmez.
+
+---
+
+## Adım 22 — OTEL Metrics Push Yapılandırması
+
+VDP kapsamında Monad Foundation, tüm validatorların metriklerini kendi izleme altyapısına push etmesini zorunlu tutmaktadır. Aşağıdaki script, OTEL Collector'ı SECP key'inizi otomatik olarak tespit ederek Monad Foundation'ın endpoint'ine push edecek şekilde yapılandırır.
+
+```bash
+curl -fsSL -o /tmp/otel-validator-setup.sh https://bucket.monadinfra.com/tmp/otel-validator-setup.sh
+echo "92cca0add5456db13c792b6e1b484999724b348ebd41a40a73d7f42086f26a23  /tmp/otel-validator-setup.sh" | sha256sum -c && sudo bash /tmp/otel-validator-setup.sh
+```
+
+Başarılı çıktı:
+```
+/tmp/otel-validator-setup.sh: OK
+Secp public key: <SECP_PUBLIC_KEY>
+✔ METRIC PUSHING WITH SECP KEY CONFIGURED
+```
+
+Yapılandırmayı doğrulayın:
+
+```bash
+curl -s http://localhost:8889/metrics | grep secp_key | head -5
+```
+
+Çıktıda `secp_key="<SECP_PUBLIC_KEY>"` etiketini içeren metrik satırları görünüyorsa push aktiftir.
+
+> Not: Script idempotent'tir — zaten yapılandırılmışsa değişiklik yapmadan çıkar.
 
 ---
 
