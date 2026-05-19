@@ -7,7 +7,7 @@
 
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-24.04+-E95420?style=flat-square&logo=ubuntu&logoColor=white)](https://ubuntu.com)
 [![Monad](https://img.shields.io/badge/Monad-Testnet-836EF9?style=flat-square)](https://monad.xyz)
-[![Version](https://img.shields.io/badge/Node%20Version-v0.14.1-brightgreen?style=flat-square)](https://docs.monad.xyz)
+[![Version](https://img.shields.io/badge/Node%20Version-v0.14.3-brightgreen?style=flat-square)](https://docs.monad.xyz)
 [![Chain ID](https://img.shields.io/badge/Chain%20ID-10143-blue?style=flat-square)](https://docs.monad.xyz/developer-essentials/testnets)
 
 [hazennetworksolutions.com](https://hazennetworksolutions.com)
@@ -18,8 +18,8 @@
 
 > **Yazar:** HazenNetworkSolutions  
 > **Ağ:** Monad Testnet (Chain ID: 10143)  
-> **Versiyon:** v0.14.1  
-> **Son Güncelleme:** Nisan 2026  
+> **Versiyon:** v0.14.3  
+> **Son Güncelleme:** 19 Mayıs 2026  
 > **Resmi Docs:** [docs.monad.xyz](https://docs.monad.xyz/node-ops)
 
 ---
@@ -124,7 +124,7 @@ Yeni versiyon duyuruları:
 
 ```bash
 # Yeni versiyonu buraya yaz
-VERSION="0.14.1"
+VERSION="0.14.3"
 
 apt update && apt install --reinstall monad=${VERSION} -y \
   --allow-downgrades --allow-change-held-packages
@@ -795,6 +795,6 @@ scp root@${SUNUCU_IP}:/home/monad/monad-bft/config/node.toml ./
 **HazenNetworkSolutions**  
 🌐 [hazennetworksolutions.com](https://hazennetworksolutions.com)
 
-*Monad v0.14.1 — Nisan 2026*
+*Monad v0.14.3 — 19 Mayıs 2026*
 
 </div>
