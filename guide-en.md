@@ -48,6 +48,7 @@
 - [Step 19 — Validator Registration (VDP)](#step-19--validator-registration-vdp)
 - [Step 20 — Update node.toml for Validator](#step-20--update-nodetoml-for-validator)
 - [Step 21 — validator-info PR](#step-21--validator-info-pr)
+- [Step 22 — Configure OTEL Metrics Push](#step-22--configure-otel-metrics-push)
 - [Monitoring the Node](#monitoring-the-node)
 - [Staying Updated](#staying-updated)
 
@@ -645,6 +646,34 @@ As requested by the Monad Foundation, submit a PR to the `monad-developers/valid
 4. Share the PR link with the Monad Foundation via Telegram/Discord
 
 > ⚠️ PRs that are not shared via Discord/Telegram will not be reviewed.
+
+---
+
+## Step 22 — Configure OTEL Metrics Push
+
+The VDP requires all validators to push metrics to Monad Foundation's monitoring infrastructure. The script below automatically detects your SECP key and configures the OTEL Collector to push to Monad Foundation's endpoint.
+
+```bash
+curl -fsSL -o /tmp/otel-validator-setup.sh https://bucket.monadinfra.com/tmp/otel-validator-setup.sh
+echo "92cca0add5456db13c792b6e1b484999724b348ebd41a40a73d7f42086f26a23  /tmp/otel-validator-setup.sh" | sha256sum -c && sudo bash /tmp/otel-validator-setup.sh
+```
+
+Successful output:
+```
+/tmp/otel-validator-setup.sh: OK
+Secp public key: <SECP_PUBLIC_KEY>
+✔ METRIC PUSHING WITH SECP KEY CONFIGURED
+```
+
+Verify the configuration:
+
+```bash
+curl -s http://localhost:8889/metrics | grep secp_key | head -5
+```
+
+If metric lines containing `secp_key="<SECP_PUBLIC_KEY>"` appear, push is active.
+
+> Note: The script is idempotent — if already configured, it exits without making changes.
 
 ---
 
