@@ -19,7 +19,7 @@
 > **Author:** HazenNetworkSolutions  
 > **Network:** Monad Testnet (Chain ID: 10143)  
 > **Version:** v0.14.3  
-> **Last Updated:** April 2026  
+> **Last Updated:** 19 May 2026  
 > **Official Docs:** [docs.monad.xyz](https://docs.monad.xyz/node-ops)
 
 ---
@@ -796,6 +796,6 @@ scp root@${SERVER_IP}:/home/monad/monad-bft/config/node.toml ./
 **HazenNetworkSolutions**  
 🌐 [hazennetworksolutions.com](https://hazennetworksolutions.com)
 
-*Monad v0.14.3 — April 2026*
+*Monad v0.14.3 — 19 May 2026*
 
 </div>
