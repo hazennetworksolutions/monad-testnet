@@ -28,8 +28,7 @@ _RAID management, TrieDB preparation, snapshot import, service startup, validato
 
 | Type | Language | Link |
 |------|----------|------|
-| Full Node & Validator Setup | 🇬🇧 English | [monad-node-guide-EN.md](monad-node-guide-EN.md) |
-| Full Node & Validator Setup | 🇹🇷 Türkçe | [monad-node-guide-TR.md](monad-node-guide-TR.md) |
+| Full Node & Validator Setup | 🇬🇧 English | [guide-en.md](guide-en.md) |
 | Operation & Recovery Guide | 🇬🇧 English | [operation-guide-EN.md](operation-guide-EN.md) |
 | Operation & Recovery Guide | 🇹🇷 Türkçe | [operation-guide-TR.md](operation-guide-TR.md) |
 
